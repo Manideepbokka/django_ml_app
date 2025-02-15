@@ -1,0 +1,7 @@
+django>=4.2
+djangorestframework
+pandas
+numpy==1.26.4
+torch==2.5.1+cu124
+scikit-learn==1.3.0
+djangorestframework-simplejwt==5.4.0
