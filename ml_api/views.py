@@ -75,7 +75,11 @@ class LoginView(APIView):
 
         if user is not None:
             refresh = RefreshToken.for_user(user)
-            response = Response({"message": "Login successful"}, status=status.HTTP_200_OK)
+            response = Response({"message": "Login successful",
+                "user": {
+                    "first_name": user.first_name,
+                    "last_name": user.last_name
+                }}, status=status.HTTP_200_OK)
             # Set tokens in HTTP-only cookies without strict or secure options
             response.set_cookie(
                 key='access_token',
