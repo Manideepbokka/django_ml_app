@@ -20,7 +20,8 @@ import random
 import jwt
 from django.conf import settings
 from rest_framework_simplejwt.authentication import JWTAuthentication
-
+from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.exceptions import InvalidToken
 
 @method_decorator(csrf_exempt, name='dispatch')
 class RegisterView(APIView):
@@ -74,13 +75,49 @@ class LoginView(APIView):
 
         if user is not None:
             refresh = RefreshToken.for_user(user)
-            return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }, status=status.HTTP_200_OK)
+            response = Response({"message": "Login successful"}, status=status.HTTP_200_OK)
+            # Set tokens in HTTP-only cookies without strict or secure options
+            response.set_cookie(
+                key='access_token',
+                value=str(refresh.access_token),
+                httponly=True,
+                max_age=2 * 60  # 2 minutes (same as ACCESS_TOKEN_LIFETIME)
+            )
+            response.set_cookie(
+                key='refresh_token',
+                value=str(refresh),
+                httponly=True,
+                max_age=24 * 60 * 60  # 1 day (same as REFRESH_TOKEN_LIFETIME)
+            )
+            return response
 
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
+class CookieTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        try:
+            # Get refresh token from cookies
+            refresh_token = request.COOKIES.get('refresh_token')
+            if not refresh_token:
+                return Response({"error": "Refresh token missing"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Generate a new access token
+            data = {'refresh': refresh_token}
+            serializer = self.get_serializer(data=data)  # Properly initialize the serializer
+            serializer.is_valid(raise_exception=True)
+            access_token = serializer.validated_data.get('access')
+
+            # Set the new access token in the cookie
+            response = Response({"message": "Token refreshed"}, status=status.HTTP_200_OK)
+            response.set_cookie(
+                key='access_token',
+                value=access_token,
+                httponly=True,
+                max_age=2 * 60  # Match ACCESS_TOKEN_LIFETIME
+            )
+            return response
+        except InvalidToken:
+            return Response({"error": "Invalid refresh token"}, status=status.HTTP_401_UNAUTHORIZED)     
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -88,7 +125,8 @@ def predict_view(request):
     try:
         with transaction.atomic():
             # Extract JWT token from request headers
-            jwt_token = request.headers.get("Authorization").split(" ")[1]  # Bearer <token>
+            #jwt_token = request.headers.get("Authorization").split(" ")[1]  # Bearer <token>
+            jwt_token = request.COOKIES.get("access_token")
             decoded_token = jwt.decode(jwt_token, settings.SECRET_KEY, algorithms=["HS256"])
             user_id = decoded_token.get("user_id")
 
@@ -260,14 +298,15 @@ class ChangePasswordView(APIView):
             print(f"Error during password change: {e}")
             return Response({"error": "Internal server error. Password change failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
+@method_decorator(csrf_exempt, name='dispatch')
 class HistoryView(APIView):
-    permission_classes = [IsAuthenticated]
+    #permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
             # Extract JWT token from request headers
-            jwt_token = request.headers.get("Authorization").split(" ")[1]  # Bearer <token>
+            #jwt_token = request.headers.get("Authorization").split(" ")[1]  # Bearer <token>
+            jwt_token = request.COOKIES.get("access_token")
             decoded_token = jwt.decode(jwt_token, settings.SECRET_KEY, algorithms=["HS256"])
             user_id = decoded_token.get("user_id")
 
