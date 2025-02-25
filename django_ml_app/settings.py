@@ -40,7 +40,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'ml_api',
-    'corsheaders'
+    'corsheaders',
+    'rest_framework_simplejwt.token_blacklist',
     
 ]
 
@@ -150,7 +151,7 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=2),  # Access token valid for 2 minutes
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),    # Refresh token valid for 1 day
     'ROTATE_REFRESH_TOKENS': True,                 # Issue a new refresh token when it's used
-    'BLACKLIST_AFTER_ROTATION': True,              # Blacklist old refresh tokens when rotated
+    'BLACKLIST_AFTER_ROTATION': False,              # Blacklist old refresh tokens when rotated
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }

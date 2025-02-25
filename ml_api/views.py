@@ -22,6 +22,8 @@ from django.conf import settings
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework_simplejwt.exceptions import TokenError
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class RegisterView(APIView):
@@ -107,21 +109,53 @@ class CookieTokenRefreshView(TokenRefreshView):
 
             # Generate a new access token
             data = {'refresh': refresh_token}
-            serializer = self.get_serializer(data=data)  # Properly initialize the serializer
+            serializer = self.get_serializer(data=data)
             serializer.is_valid(raise_exception=True)
             access_token = serializer.validated_data.get('access')
 
+            # Decode refresh token to get user ID
+            refresh = RefreshToken(refresh_token)
+            user = User.objects.get(id=refresh['user_id'])
+
             # Set the new access token in the cookie
-            response = Response({"message": "Token refreshed"}, status=status.HTTP_200_OK)
+            response = Response({
+                "message": "Token refreshed",
+                "user": {
+                    "first_name": user.first_name,
+                    "last_name": user.last_name
+                }
+            }, status=status.HTTP_200_OK)
+
             response.set_cookie(
                 key='access_token',
                 value=access_token,
                 httponly=True,
-                max_age=2 * 60  # Match ACCESS_TOKEN_LIFETIME
+                max_age=2 * 60  # 2 minutes
             )
             return response
-        except InvalidToken:
-            return Response({"error": "Invalid refresh token"}, status=status.HTTP_401_UNAUTHORIZED)     
+
+        except (InvalidToken, User.DoesNotExist):
+            return Response({"error": "Invalid refresh token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+class LogoutView(APIView):
+    def post(self, request):
+        refresh_token = request.COOKIES.get('refresh_token')
+
+        # Blacklist the refresh token (recommended for security)
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except TokenError:
+                pass  # Token is invalid or already blacklisted
+
+        # Delete cookies to remove tokens from the browser
+        response = Response({"message": "Successfully logged out"}, status=status.HTTP_200_OK)
+        response.delete_cookie('access_token')
+        response.delete_cookie('refresh_token')
+
+        return response
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])

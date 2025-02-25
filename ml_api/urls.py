@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterView, LoginView, predict_view , ForgotPasswordView, ResetPasswordView, ChangePasswordView, ResendOTPView, HistoryView, ValidateOTPView,CookieTokenRefreshView
+from .views import RegisterView, LoginView, predict_view , ForgotPasswordView, ResetPasswordView, ChangePasswordView, ResendOTPView, HistoryView, ValidateOTPView,CookieTokenRefreshView,LogoutView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -12,4 +12,5 @@ urlpatterns = [
     path("predict/", predict_view, name="predict"),
     path('resend-otp/', ResendOTPView.as_view(), name='resend-otp'),                
     path('history/', HistoryView.as_view(), name='history'),
+    path('logout/', LogoutView.as_view(), name='logout' )
 ]
