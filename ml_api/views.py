@@ -242,7 +242,7 @@ class ForgotPasswordView(APIView):
                 send_mail(
                     'Password Reset OTP',
                     f'Your OTP for password reset is: {otp}',
-                    'saimanideep159@gmail.com',
+                    'kakaraparthis.24s@gmail.com',
                     [email],
                     fail_silently=False,
                 )
@@ -261,11 +261,12 @@ class ValidateOTPView(APIView):
         try:
             # Check if the email exists
             user = User.objects.filter(email=email).first()
+            print(user.profile)
             if not user:
                 return Response({"error": "User with this email does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Verify OTP
-            if user.profile.otp != otp:
+            if str(user.profile.otp) != otp:
                 return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Mark OTP as verified (for example, set a flag in the user profile)
