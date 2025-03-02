@@ -82,12 +82,35 @@ WSGI_APPLICATION = 'django_ml_app.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django_snowflake',
+        'NAME': 'FUTRA_LABS',  
+        'USER': 'MRACHAMA',
+        'PASSWORD': 'Sainanna_12345',
+        'ACCOUNT': 'UKVVVDW-ZMB43693',
+        'WAREHOUSE': 'COMPUTE_WH',
+        'DATABASE': 'FUTRA_LABS',  
+        'SCHEMA': 'EMISSION_PREDICTIONS',
+        'ROLE': 'FUTRA_ROLE',
+        'OPTIONS': {
+            'client_session_keep_alive': True,
+            'database': 'FUTRA_LABS',
+            'schema': 'EMISSION_PREDICTIONS',
+            'INIT_SQLS': ['USE DATABASE FUTRA_LABS; USE SCHEMA EMISSION_PREDICTIONS;']
+        }
     }
 }
+
+
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
