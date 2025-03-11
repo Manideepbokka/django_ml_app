@@ -23,7 +23,8 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.exceptions import TokenError
-
+from django.db import connection
+import math
 
 @method_decorator(csrf_exempt, name='dispatch')
 class RegisterView(APIView):
@@ -175,14 +176,18 @@ def predict_view(request):
             input_data = request.data.get("inputData", {})
             print("Received Input Data:", input_data)
 
+            city = input_data.get("City", None)
+
             # Validate required fields
             if not all(key in input_data for key in ["Age", "Speed", "Vehicle Type", "Fuel Type"]):
                 return Response({"error": "Invalid input format. Required fields: Age, Speed, Vehicle Type, Fuel Type"}, status=400)
-
+            
             print("Validated Input Data:", input_data)
 
+            filtered_input_data = {key: value for key, value in input_data.items() if key != "City"}
+
             # Perform prediction
-            predictions = predict_all(input_data)
+            predictions = predict_all(filtered_input_data)
             print("Generated Predictions:", predictions)
 
             # Save the prediction log to the database
@@ -192,6 +197,7 @@ def predict_view(request):
                 speed=input_data["Speed"],
                 vehicle_type=input_data["Vehicle Type"],
                 fuel_type=input_data["Fuel Type"],
+                city=city,
                 ga_co2=predictions["gaCo2"],
                 ga_total_energy_rate=predictions["gaTotalEnergyRate"],
                 ga_nox=predictions["gaNOx"],
@@ -362,6 +368,7 @@ class HistoryView(APIView):
                     "speed": prediction.speed,
                     "vehicle_type": prediction.vehicle_type,
                     "fuel_type": prediction.fuel_type,
+                    "city": prediction.city,
                     "gaCo2": prediction.ga_co2,
                     "gaTotalEnergyRate": prediction.ga_total_energy_rate,
                     "gaNOx": prediction.ga_nox,
@@ -417,3 +424,48 @@ class ResendOTPView(APIView):
         except Exception as e:
             print(f"Error during Resend OTP: {e}")
             return Response({"error": "Internal server error. Unable to resend OTP."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+class PaginatedEmissionsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        try:
+            # Extract page number from request query params
+            page = int(request.GET.get("page", 1))  # Default page is 1
+            per_page = 50  # Fixed 50 records per page
+            offset = (page - 1) * per_page  # Calculate offset
+            
+            # Get total record count
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT COUNT(*) FROM FUTRA_LABS.EMISSION_PREDICTIONS.ACTUAL_DATA_GEORGIA
+                """)
+                total_records = cursor.fetchone()[0]  # Fetch count
+
+            # Query paginated data
+            with connection.cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT "Fuel Type", "Vehicle Type", SPEED, AGE, NOX, CO2, "Energy Rate",
+                        "PM2.5 Total", "PM2.5 Brakewear", "PM2.5 Tirewear", STATE
+                    FROM FUTRA_LABS.EMISSION_PREDICTIONS.ACTUAL_DATA_GEORGIA
+                    LIMIT {per_page} OFFSET {offset}
+                """)
+                columns = [col[0] for col in cursor.description]
+                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+            # Calculate total pages
+            total_pages = math.ceil(total_records / per_page)
+
+            # Prepare response
+            return Response({
+                "page": page,
+                "per_page": per_page,
+                "total_records": total_records,
+                "total_pages": total_pages,
+                "data": results
+            }, status=200)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)

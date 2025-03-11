@@ -17,6 +17,7 @@ class PredictionLog(models.Model):
     speed = models.FloatField()
     vehicle_type = models.CharField(max_length=50)
     fuel_type = models.CharField(max_length=50)
+    city = models.CharField(max_length=100, null=True, blank=True)
     ga_co2 = models.FloatField()
     ga_total_energy_rate = models.FloatField()
     ga_nox = models.FloatField()
