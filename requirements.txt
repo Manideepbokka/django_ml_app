@@ -8,3 +8,4 @@ djangorestframework-simplejwt==5.4.0
 django-cors-headers
 django-snowflake
 snowflake-connector-python
+matlpotlib
