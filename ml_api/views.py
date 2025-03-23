@@ -432,33 +432,48 @@ class PaginatedEmissionsView(APIView):
 
     def get(self, request):
         try:
-            # Extract page number from request query params
-            page = int(request.GET.get("page", 1))  # Default page is 1
-            per_page = 50  # Fixed 50 records per page
-            offset = (page - 1) * per_page  # Calculate offset
-            
-            # Get total record count
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT COUNT(*) FROM FUTRA_LABS.EMISSION_PREDICTIONS.ACTUAL_DATA_GEORGIA
-                """)
-                total_records = cursor.fetchone()[0]  # Fetch count
+            page = int(request.GET.get("page", 1))
+            per_page = 50
+            offset = (page - 1) * per_page
 
-            # Query paginated data
+            # Handle optional filters from query params
+            filters = []
+            params = []
+
+            if "STATE" in request.GET:
+                filters.append('STATE = %s')
+                params.append(request.GET["STATE"])
+            if "Fuel Type" in request.GET:
+                filters.append('"Fuel Type" = %s')
+                params.append(request.GET["Fuel Type"])
+            if "Vehicle Type" in request.GET:
+                filters.append('"Vehicle Type" = %s')
+                params.append(request.GET["Vehicle Type"])
+
+            where_clause = " AND ".join(filters)
+            where_sql = f"WHERE {where_clause}" if where_clause else ""
+
+            # Get total record count (with filters)
+            with connection.cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT COUNT(*) FROM FUTRA_LABS.EMISSION_PREDICTIONS.ACTUAL_DATA_GEORGIA {where_sql}
+                """, params)
+                total_records = cursor.fetchone()[0]
+
+            # Query paginated data (with filters)
             with connection.cursor() as cursor:
                 cursor.execute(f"""
                     SELECT "Fuel Type", "Vehicle Type", SPEED, AGE, NOX, CO2, "Energy Rate",
                         "PM2.5 Total", "PM2.5 Brakewear", "PM2.5 Tirewear", STATE
                     FROM FUTRA_LABS.EMISSION_PREDICTIONS.ACTUAL_DATA_GEORGIA
+                    {where_sql} 
                     LIMIT {per_page} OFFSET {offset}
-                """)
+                """, params)
                 columns = [col[0] for col in cursor.description]
                 results = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
-            # Calculate total pages
             total_pages = math.ceil(total_records / per_page)
 
-            # Prepare response
             return Response({
                 "page": page,
                 "per_page": per_page,
@@ -467,5 +482,29 @@ class PaginatedEmissionsView(APIView):
                 "data": results
             }, status=200)
 
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
+
+
+class DistinctValuesView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        column = request.GET.get("column")
+        allowed_columns = ['STATE', '"Fuel Type"', '"Vehicle Type"']
+        
+        if column not in allowed_columns:
+            return Response({"error": "Invalid column requested"}, status=400)
+        
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT DISTINCT {column}
+                    FROM FUTRA_LABS.EMISSION_PREDICTIONS.ACTUAL_DATA_GEORGIA
+                """)
+                values = [row[0] for row in cursor.fetchall()]
+            
+            return Response({"values": values}, status=200)
         except Exception as e:
             return Response({"error": str(e)}, status=400)

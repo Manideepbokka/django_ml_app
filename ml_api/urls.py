@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterView, LoginView, predict_view , PaginatedEmissionsView, ForgotPasswordView, ResetPasswordView, ChangePasswordView, ResendOTPView, HistoryView, ValidateOTPView,CookieTokenRefreshView,LogoutView
+from .views import RegisterView, LoginView, predict_view ,DistinctValuesView, PaginatedEmissionsView, ForgotPasswordView, ResetPasswordView, ChangePasswordView, ResendOTPView, HistoryView, ValidateOTPView,CookieTokenRefreshView,LogoutView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -11,6 +11,7 @@ urlpatterns = [
     path('change-password/', ChangePasswordView.as_view(), name='change_password'),
     path("predict/", predict_view, name="predict"),
     path("pagination-emissions", PaginatedEmissionsView.as_view(), name='paginated_emissions'),
+    path('distinct-values', DistinctValuesView.as_view(), name='distinct_values'),
     path('resend-otp/', ResendOTPView.as_view(), name='resend-otp'),                
     path('history/', HistoryView.as_view(), name='history'),
     path('logout/', LogoutView.as_view(), name='logout' )
