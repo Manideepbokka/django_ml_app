@@ -436,31 +436,39 @@ class PaginatedEmissionsView(APIView):
             per_page = 50
             offset = (page - 1) * per_page
 
-            # Handle optional filters from query params
             filters = []
             params = []
 
-            if "STATE" in request.GET:
-                filters.append('STATE = %s')
-                params.append(request.GET["STATE"])
-            if "Fuel Type" in request.GET:
-                filters.append('"Fuel Type" = %s')
-                params.append(request.GET["Fuel Type"])
-            if "Vehicle Type" in request.GET:
-                filters.append('"Vehicle Type" = %s')
-                params.append(request.GET["Vehicle Type"])
+            if "STATE[]" in request.GET:
+                states = request.GET.getlist("STATE[]")
+                if states:
+                    placeholders = ', '.join(['%s'] * len(states))
+                    filters.append(f'STATE IN ({placeholders})')
+                    params.extend(states)
+
+            if "FuelType[]" in request.GET:
+                fuels = request.GET.getlist("FuelType[]")
+                if fuels:
+                    placeholders = ', '.join(['%s'] * len(fuels))
+                    filters.append(f'"Fuel Type" IN ({placeholders})')
+                    params.extend(fuels)
+
+            if "VehicleType[]" in request.GET:
+                vehicles = request.GET.getlist("VehicleType[]")
+                if vehicles:
+                    placeholders = ', '.join(['%s'] * len(vehicles))
+                    filters.append(f'"Vehicle Type" IN ({placeholders})')
+                    params.extend(vehicles)
 
             where_clause = " AND ".join(filters)
             where_sql = f"WHERE {where_clause}" if where_clause else ""
 
-            # Get total record count (with filters)
             with connection.cursor() as cursor:
                 cursor.execute(f"""
                     SELECT COUNT(*) FROM FUTRA_LABS.EMISSION_PREDICTIONS.ACTUAL_DATA_GEORGIA {where_sql}
                 """, params)
                 total_records = cursor.fetchone()[0]
 
-            # Query paginated data (with filters)
             with connection.cursor() as cursor:
                 cursor.execute(f"""
                     SELECT "Fuel Type", "Vehicle Type", SPEED, AGE, NOX, CO2, "Energy Rate",
@@ -484,6 +492,8 @@ class PaginatedEmissionsView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+
+
 
 
 
